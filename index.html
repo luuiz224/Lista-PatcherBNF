@@ -515,14 +515,20 @@
     updateSendBtn();
   }
 
+  function formatCnpj(raw) {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length !== 14) return raw;
+    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  }
+
   function parseLine(line) {
     // Try pattern: CNPJ - NOME - UNIDADE
     const cnpjRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/;
     const cnpjMatch = line.match(cnpjRegex);
     if (!cnpjMatch) return null;
 
-    const cnpj = cnpjMatch[1];
-    let rest = line.substring(line.indexOf(cnpj) + cnpj.length).trim();
+    const cnpj = formatCnpj(cnpjMatch[1]);
+    let rest = line.substring(line.indexOf(cnpjMatch[1]) + cnpjMatch[1].length).trim();
 
     // Remove leading separator
     rest = rest.replace(/^[\s\-–—]+/, '').trim();
@@ -547,7 +553,7 @@
       }
     }
 
-    const nome = rest || '(sem nome)';
+    const nome = (rest || '(sem nome)').toUpperCase();
     return { cnpj, nome, unidade: unidade || '???' };
   }
 
