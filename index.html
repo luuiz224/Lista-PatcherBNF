@@ -390,6 +390,89 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Dark theme */
+  [data-theme="dark"] {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232735;
+    --border: #2e3345;
+    --text: #e4e6ef;
+    --text-dim: #8b8fa7;
+    --accent: #3b82f6;
+    --accent-dim: #2563eb;
+    --accent-glow: rgba(59, 130, 246, 0.12);
+    --danger: #ef4444;
+    --danger-dim: rgba(239, 68, 68, 0.12);
+    --tag-spo: #60a5fa;
+    --tag-sts: #a78bfa;
+    --tag-sbc: #fb923c;
+    --tag-cps: #2dd4bf;
+  }
+
+  [data-theme="dark"] .tag-SPO { background: rgba(96,165,250,0.15); }
+  [data-theme="dark"] .tag-STS { background: rgba(167,139,250,0.15); }
+  [data-theme="dark"] .tag-SBC { background: rgba(251,146,60,0.15); }
+  [data-theme="dark"] .tag-CPS { background: rgba(45,212,191,0.15); }
+
+  [data-theme="dark"] .config-bar,
+  [data-theme="dark"] .table-wrap {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  [data-theme="dark"] .toast {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  [data-theme="dark"] .config-bar .status-dot {
+    background: #4b5563;
+  }
+
+  /* Theme toggle */
+  .theme-toggle {
+    margin-left: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px; height: 36px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    transition: all 0.15s;
+  }
+
+  .theme-toggle:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+
+  .theme-toggle svg {
+    width: 18px; height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  /* Duplicate warning */
+  tbody tr.row-duplicate {
+    background: rgba(217, 119, 6, 0.08);
+  }
+
+  .badge-duplicate {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--warning);
+    background: rgba(217, 119, 6, 0.1);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    margin-left: 0.5rem;
+    font-family: var(--sans);
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     body { padding: 1rem; }
@@ -411,6 +494,10 @@
       <h1>Lancamento Rapido</h1>
       <p>Importe dados de empresas para o Google Sheets</p>
     </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema" id="themeBtn">
+      <svg id="iconSun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </header>
 
   <!-- Config -->
@@ -510,8 +597,16 @@
       return;
     }
 
+    const cnpjCount = {};
+    parsedRows.forEach(r => { cnpjCount[r.cnpj] = (cnpjCount[r.cnpj] || 0) + 1; });
+    const dupCount = Object.values(cnpjCount).filter(c => c > 1).length;
+
     renderTable();
-    showToast(`${parsedRows.length} registro(s) parseado(s)`, 'success');
+    if (dupCount > 0) {
+      showToast(`${parsedRows.length} registro(s) parseado(s) — ${dupCount} CNPJ(s) duplicado(s)`, 'error');
+    } else {
+      showToast(`${parsedRows.length} registro(s) parseado(s)`, 'success');
+    }
     updateSendBtn();
   }
 
@@ -572,9 +667,17 @@
     empty.style.display = 'none';
     document.getElementById('rowCount').textContent = parsedRows.length;
 
-    tbody.innerHTML = parsedRows.map((r, i) => `
-      <tr class="${r.unidade === '???' ? 'row-error' : ''}">
-        <td class="col-cnpj">${r.cnpj}</td>
+    const cnpjCount = {};
+    parsedRows.forEach(r => { cnpjCount[r.cnpj] = (cnpjCount[r.cnpj] || 0) + 1; });
+
+    tbody.innerHTML = parsedRows.map((r, i) => {
+      const isDup = cnpjCount[r.cnpj] > 1;
+      const isError = r.unidade === '???';
+      const rowClass = isError ? 'row-error' : isDup ? 'row-duplicate' : '';
+      const dupBadge = isDup ? '<span class="badge-duplicate">DUPLICADO</span>' : '';
+      return `
+      <tr class="${rowClass}">
+        <td class="col-cnpj">${r.cnpj}${dupBadge}</td>
         <td class="col-nome" style="font-family:var(--sans);font-weight:500;">${escapeHtml(r.nome)}</td>
         <td class="col-unidade">
           <span class="tag tag-${r.unidade}">${r.unidade}</span>
@@ -582,8 +685,8 @@
         <td class="col-acao">
           <button class="btn-remove" onclick="removeRow(${i})" title="Remover">×</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 
   function removeRow(i) {
@@ -668,7 +771,26 @@
     t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  // Init: detectar URL preenchida ao carregar
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    const theme = isDark ? 'light' : 'dark';
+    html.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    updateThemeIcon(theme);
+  }
+
+  function updateThemeIcon(theme) {
+    document.getElementById('iconSun').style.display = theme === 'dark' ? 'none' : 'block';
+    document.getElementById('iconMoon').style.display = theme === 'dark' ? 'block' : 'none';
+  }
+
+  // Init
+  (function() {
+    const saved = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    updateThemeIcon(saved);
+  })();
   checkUrl();
 </script>
 
